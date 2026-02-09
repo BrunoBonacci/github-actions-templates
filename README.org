@@ -1,0 +1,79 @@
+* README
+
+My templates for GitHub Actions.
+
+** Workflows
+
+*** clojure-build
+
+Simple Clojure build
+
+- installs: Leiningen, clj, bb
+- runs =lein test= for tests
+- builds and stores clean jar/uberjar
+
+
+*** clojure-build-native
+
+Builds native images on various platforms like: macos, linux, windows
+and for different CPU architectures, like: x64 (or amd64), aarch64
+(or arm64).
+
+- installs: Leiningen, clj, bb
+- runs =lein test= for tests
+- builds and stores final native images.
+
+
+Sample leiningen project.clj
+
+#+begin_src clojure
+(defproject hello-world "0.1.0-SNAPSHOT"
+
+  :dependencies [[org.clojure/clojure "1.12.0"]
+                 [com.github.clj-easy/graal-build-time "1.0.5"]]
+
+  ;; add the main namespace
+  :main hello-world.core
+
+  ;; show reflection warnings.
+  :global-vars {*warn-on-reflection* true}
+
+  ;; add AOT compilation
+  :profiles {:uberjar {:aot :all}
+             :dev {:plugins [[lein-shell "0.5.0"]]}}
+
+  :aliases
+  {"native"
+   ["do" ["clean"] ["uberjar"]
+    ["shell"
+     "native-image"
+     ;;"--verbose"
+     "--no-fallback"
+     ;; if you are getting the following error, uncomment the next two lines
+     ;; Error: Darwin native toolchain (x86_64) implies native-image target architecture class jdk.vm.ci.amd64.AMD64 but configured native-image target architecture is class jdk.vm.ci.aarch64.AArch64.
+     ;;"--native-compiler-options=-arch"
+     ;;"--native-compiler-options=arm64"
+     "--features=clj_easy.graal_build_time.InitClojureClasses"
+     "-jar" "./target/${:uberjar-name:-${:name}-${:version}-standalone.jar}"
+     "-o" "./target/${:name}"]]
+
+
+   "native-win"
+   ["do" ["clean"] ["uberjar"]
+    ["shell"
+     "native-image"
+     ;;"--verbose"
+     "--no-fallback"
+     "--features=clj_easy.graal_build_time.InitClojureClasses"
+     "-jar" "./target/${:uberjar-name:-${:name}-${:version}-standalone.jar}"
+     "-o" "./target/${:name}"]]
+   }
+
+  )
+```
+#+end_src
+
+
+** License
+
+Copyright © 2025 - 2026 Bruno Bonacci - Distributed under the [[http://www.apache.org/licenses/LICENSE-2.0][Apache License v2.0]]

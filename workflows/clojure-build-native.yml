@@ -1,0 +1,144 @@
+name: Clojure CI for cross-platform native images.
+
+on: [push]
+
+#
+# Search and replace 'hello-world' with the correct app name
+#
+
+jobs:
+  build:
+
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            name: macos
+            arch: aarch64
+
+          # https://github.com/graalvm/graalvm-ce-builds/releases/tag/jdk-25.0.1
+          # Support for macOS x64 is deprecated. Version 25.0.1 is the last
+          # release that supports this hardware architecture. In future,
+          # GraalVM will only support macOS on AArch64 (Apple Silicon).
+          # --------------------------------------------------------------------
+          # - os: macos-15-intel
+          #   name: macos
+          #   arch: x64
+
+
+          - os: ubuntu-latest
+            name: linux
+            arch: x64
+
+
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up GraalVM
+      uses: graalvm/setup-graalvm@v1.4.5
+      with:
+        java-version: '25'
+        distribution: 'graalvm-community'
+        native-image-job-reports: 'true'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install clojure tools
+      uses: DeLaGuardo/setup-clojure@13.5
+      with:
+        # Install just one or all simultaneously
+        # The value must indicate a particular version of the tool, or use 'latest'
+        # to always provision the latest version
+        cli: latest              # Clojure CLI based on tools.deps
+        lein: latest             # Leiningen
+        bb: latest               # Babashka
+        cljfmt: latest           # cljfmt
+
+
+    - name: Install dependencies (mac/linux)
+      run: lein deps
+
+
+    - name: Build all (mac/linux)
+      run: lein compile :all
+
+
+    - name: Run tests (mac/linux)
+      run: lein test
+
+
+    - name: Build Native (mac/linux)
+      run: lein native
+
+
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: hello-world-${{ matrix.name }}-${{ matrix.arch }}
+        path: target/hello-world
+
+
+  build-windows:
+
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+            arch: x64
+
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up GraalVM
+      uses: graalvm/setup-graalvm@v1.4.5
+      with:
+        java-version: '25'
+        distribution: 'graalvm-community'
+        native-image-job-reports: 'true'
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Install clojure tools
+      uses: DeLaGuardo/setup-clojure@13.5
+      with:
+        # Install just one or all simultaneously
+        # The value must indicate a particular version of the tool, or use 'latest'
+        # to always provision the latest version
+        cli: latest              # Clojure CLI based on tools.deps
+        lein: latest             # Leiningen
+        bb: latest               # Babashka
+        cljfmt: latest           # cljfmt
+
+
+    - name: Install dependencies (win)
+      shell: cmd
+      run: lein deps
+
+
+    - name: Build all (win)
+      shell: cmd
+      run: lein compile :all
+
+
+    - name: Run tests (win)
+      shell: cmd
+      run: lein test
+
+
+    - name: Build Native (win)
+      shell: cmd
+      run: lein native-win
+
+
+    - name: Archive binary
+      uses: actions/upload-artifact@v4
+      with:
+        name: hello-world-${{ matrix.name }}-${{ matrix.arch }}
+        path: target/hello-world.exe
